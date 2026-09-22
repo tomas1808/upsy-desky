@@ -1,0 +1,84 @@
+# Verified display reader + Home Assistant connectivity. No movement outputs.
+# See docs/feiya-bringup.md for measured wiring and remaining control work.
+esphome:
+  name: upsy-desky-feiya
+  friendly_name: Upsy Desky
+  min_version: "2025.12.0"
+  # HA 2025.5.1 (aioesphomeapi 30.1.0) waits for the legacy login reply.
+  # ESPHome 2025.12.6 omits it when this flag is absent. Keep the handler
+  # with its default empty password; Noise encryption below still requires
+  # the API key. Tested with 2025.12.6; revisit before upgrading ESPHome.
+  platformio_options:
+    build_flags:
+      - -DUSE_API_PASSWORD
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [feiya_desk]
+
+logger:
+  level: INFO
+
+uart:
+  - id: display_uart
+    rx_pin:
+      number: GPIO18 # RJ45 pin 1: verified controller display frames
+      mode:
+        input: true
+        pullup: false
+        pulldown: false
+    baud_rate: 9600
+    data_bits: 8
+    parity: NONE
+    stop_bits: 1
+
+sensor:
+  - platform: feiya_desk
+    id: desk_height
+    uart_id: display_uart
+    name: Desk Height
+    display_active:
+      name: Desk Display Active
+    bus_connected:
+      name: Desk Data Connected
+    display_status:
+      name: Desk Display Status
+
+wifi:
+  reboot_timeout: 0s
+  ap:
+    ssid: Upsy Desky Setup
+    password: !secret feiya_ap_password
+
+captive_portal:
+
+api:
+  reboot_timeout: 0s
+  encryption:
+    key: !secret feiya_api_key
+
+ota:
+  - platform: esphome
+    password: !secret feiya_ota_password
+
+binary_sensor:
+  - platform: status
+    name: Online
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: IP Address
+      entity_category: diagnostic
+
+button:
+  - platform: restart
+    name: Restart
+    entity_category: diagnostic

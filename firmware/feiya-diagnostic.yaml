@@ -1,0 +1,70 @@
+# Receive-only capture for the photographed FEIYA FYK024-1S2 control box.
+# FIRST verify the modified cable's power and ground; see docs/feiya-bringup.md.
+# Inputs follow the user's cable mapping; levels/timing still need measurement.
+# Do not include base.yaml: it transmits on boot and enables button outputs.
+substitutions:
+  capture_a_pin: "17" # RJ45 pin 2: measured panel -> controller button frames
+  capture_b_pin: "18" # RJ45 pin 1: measured 5A return frames; display format under investigation
+  capture_baud_rate: "9600" # Readable A5/5A streams captured on GPIO17/GPIO18
+
+esphome:
+  name: upsy-desky-feiya-capture
+  min_version: "2025.12.0"
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+# USB serial only. No Wi-Fi credentials needed for initial cable diagnosis.
+logger:
+  baud_rate: 115200
+  level: DEBUG
+
+# Both UARTs only receive. Neither drives a desk signal.
+# RJ45 pin 1 / GPIO18 is only observed as an input; it is never driven.
+# The PCB itself connects each RJ45 contact straight through to the other jack.
+# Log chunks are not necessarily protocol packets: preserve the full log.
+uart:
+  - id: capture_a
+    rx_pin:
+      number: ${capture_a_pin}
+      mode:
+        input: true
+        pullup: false
+        pulldown: false
+    baud_rate: ${capture_baud_rate}
+    data_bits: 8
+    parity: NONE
+    stop_bits: 1
+    debug:
+      direction: RX
+      dummy_receiver: true
+      after:
+        bytes: 150
+        timeout: 20ms
+      sequence:
+        - lambda: |-
+            ESP_LOGD("feiya.capture", "A GPIO${capture_a_pin} (%u bytes)", static_cast<unsigned>(bytes.size()));
+            uart::UARTDebug::log_hex(direction, bytes, ':');
+  - id: capture_b
+    rx_pin:
+      number: ${capture_b_pin}
+      mode:
+        input: true
+        pullup: false
+        pulldown: false
+    baud_rate: ${capture_baud_rate}
+    data_bits: 8
+    parity: NONE
+    stop_bits: 1
+    debug:
+      direction: RX
+      dummy_receiver: true
+      after:
+        bytes: 150
+        timeout: 20ms
+      sequence:
+        - lambda: |-
+            ESP_LOGD("feiya.capture", "B GPIO${capture_b_pin} (%u bytes)", static_cast<unsigned>(bytes.size()));
+            uart::UARTDebug::log_hex(direction, bytes, ':');

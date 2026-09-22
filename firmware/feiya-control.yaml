@@ -1,0 +1,103 @@
+# ONLY FLASH AFTER UNPLUGGING THE PANEL-SIDE CABLE FROM UPSY DESKY.
+# Upsy's sockets share their signals; this firmware transmits on GPIO17 / pin 2.
+# Leave the motor-controller cable attached. Do not reconnect the original panel
+# until receive-only firmware is restored or its command wire is isolated.
+packages:
+  reader: !include feiya.yaml
+
+uart:
+  - id: !extend display_uart
+    tx_pin: GPIO17
+    rx_full_threshold: 5
+
+feiya_desk:
+  id: desk_control
+  uart_id: display_uart
+  display_id: desk_height
+  panel_disconnected: true
+
+# Panel emulation: short/long Up/Down 500/5000 ms, recalls 200 ms.
+# Save buttons run M -> release -> preset at current height (verified for slot 2).
+button:
+  - platform: template
+    name: Up
+    icon: mdi:arrow-up
+    entity_category: config
+    on_press:
+      - lambda: id(desk_control).jog(0x20);
+  - platform: template
+    name: Down
+    icon: mdi:arrow-down
+    entity_category: config
+    on_press:
+      - lambda: id(desk_control).jog(0x40);
+  - platform: template
+    name: Up 5 s
+    icon: mdi:arrow-up-bold
+    entity_category: config
+    on_press:
+      - lambda: id(desk_control).jog(0x20, 5000);
+  - platform: template
+    name: Down 5 s
+    icon: mdi:arrow-down-bold
+    entity_category: config
+    on_press:
+      - lambda: id(desk_control).jog(0x40, 5000);
+  - platform: template
+    name: Cancel Manual Move
+    icon: mdi:stop
+    entity_category: config
+    on_press:
+      - lambda: id(desk_control).cancel_manual();
+  - platform: template
+    name: Preset 1
+    icon: mdi:numeric-1-box
+    on_press:
+      - lambda: id(desk_control).recall_preset(1);
+  - platform: template
+    name: Preset 2
+    icon: mdi:numeric-2-box
+    on_press:
+      - lambda: id(desk_control).recall_preset(2);
+  - platform: template
+    name: Preset 3
+    icon: mdi:numeric-3-box
+    on_press:
+      - lambda: id(desk_control).recall_preset(3);
+  - platform: template
+    name: Preset 4
+    icon: mdi:numeric-4-box
+    on_press:
+      - lambda: id(desk_control).recall_preset(4);
+  - platform: template
+    name: Save Current Height to Preset 1
+    icon: mdi:content-save
+    entity_category: config
+    on_press:
+      - lambda: id(desk_control).save_preset(1);
+  - platform: template
+    name: Save Current Height to Preset 2
+    icon: mdi:content-save
+    entity_category: config
+    on_press:
+      - lambda: id(desk_control).save_preset(2);
+  - platform: template
+    name: Save Current Height to Preset 3
+    icon: mdi:content-save
+    entity_category: config
+    on_press:
+      - lambda: id(desk_control).save_preset(3);
+  - platform: template
+    name: Save Current Height to Preset 4
+    icon: mdi:content-save
+    entity_category: config
+    on_press:
+      - lambda: id(desk_control).save_preset(4);
+
+wifi:
+  on_disconnect:
+    - lambda: id(desk_control).release();
+
+api:
+  on_client_disconnected:
+    - lambda: id(desk_control).release();
